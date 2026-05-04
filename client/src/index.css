@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=telma@400,500,700,900&f[]=amulya@400,500,700&display=swap');
 
 * {
   margin: 0;
@@ -6,38 +7,209 @@
   box-sizing: border-box;
 }
 
+body {
+  font-family: 'Amulya', sans-serif;
+}
+
+/* ── INTRO SCREEN ── */
 .intro-screen {
   width: 100vw;
-  height: 100vh;
-  background: #0d3b3e;
+  min-height: 100vh;
+  background: #0d2f2f;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 32px;
+  padding: 40px 20px;
+  position: relative;
   overflow: hidden;
 }
 
-.intro-content {
-  text-align: center;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: all 1.2s ease;
+/* floating doodles */
+.doodle {
+  position: absolute;
+  font-size: 28px;
+  width: 150px;
+  height: auto;
+  animation: float 6s ease-in-out infinite;
+  opacity: 0.8;
 }
 
-.intro-content.show {
-  opacity: 1;
-  transform: translateY(0);
+.d1 {
+  top: 10%;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.d2 {
+  top: 0.1%;
+  right: 1%;
+  width: 300px;
+  animation-delay: 1s;
+}
+
+.d3 {
+  bottom: 25%;
+  left: 6%;
+  animation-delay: 2s;
+}
+
+.d4 {
+  top: 60%;
+  right: 8%;
+  animation-delay: 0.5s;
+}
+
+.d5 {
+  bottom: 10%;
+  right: 20%;
+  animation-delay: 1.5s;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+/* title */
+.intro-top {
+  text-align: center;
 }
 
 .intro-title {
-  font-family: 'Caveat', cursive;
-  font-size: 80px;
-  color: #f9c6d0;
+  font-family: 'Telma', sans-serif;
+  font-size: 72px;
+  color: #f9a8c9;
   line-height: 1;
 }
 
-.intro-tagline {
-  font-family: 'Caveat', cursive;
-  font-size: 28px;
+.intro-sub {
+  font-family: 'Amulya', sans-serif;
+  font-size: 24px;
   color: #7ececa;
+  margin-top: 8px;
+}
+
+/* envelope */
+.envelope-wrapper {
+  position: absolute;
+  bottom: 40px;
+  left: 40px;
+  display: flex;
+  flex-direction: column-reverse;
+  /* makes the letter appear above the button */
+  align-items: flex-start;
+  gap: 20px;
+  z-index: 10;
+}
+
+.envelope-btn {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+}
+
+.envelope-btn:hover {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.envelope-img {
+  width: 160px;
+  height: auto;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
+}
+
+.envelope-hint-floating {
+  font-family: 'Amulya', sans-serif;
+  font-size: 24px;
+  color: #f9a8c9;
+  position: absolute;
+  top: -10px;
+  right: -40px;
+  transform: rotate(15deg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  animation: float-hint 3s ease-in-out infinite;
+}
+
+@keyframes float-hint {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(15deg);
+  }
+
+  50% {
+    transform: translateY(-8px) rotate(15deg);
+  }
+}
+
+/* letter */
+.letter {
+  background: #fef6f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  max-width: 300px;
+  width: 100%;
+  font-family: 'Amulya', sans-serif;
+  font-size: 16px;
+  color: #1a4a4a;
+  line-height: 1.5;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.8s ease, padding 0.4s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.letter.visible {
+  max-height: 60vh;
+  padding: 20px 20px;
+  overflow-y: auto;
+}
+
+.letter-sign {
+  color: #7ececa;
+  margin-top: 8px;
+  font-size: 16px;
+}
+
+.dedication {
+  font-size: 14px;
+  color: #a0a0a0;
+  font-style: italic;
+  opacity: 0.9;
   margin-top: 12px;
+}
+
+/* enter button */
+.enter-btn {
+  font-family: 'Telma', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  background: #f9a8c9;
+  color: #0d2f2f;
+  border: none;
+  padding: 12px 36px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(249, 168, 201, 0.3);
+}
+
+.enter-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(249, 168, 201, 0.4);
 }
