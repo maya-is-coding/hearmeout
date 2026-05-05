@@ -1,35 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import beachImg from '../assets/doodles/room elements/beach.jpeg';
 import dateImg from '../assets/doodles/room elements/date.jpeg';
 import dormImg from '../assets/doodles/room elements/dorm.jpeg';
 import shelfImg from '../assets/doodles/room elements/shelfs.jpeg';
+import songs from '../assets/songs/songList';
+import parseLrc from '../parseLrc';
 import '../styles/Room.css';
 import '../styles/themes/dorm.css';
 import '../styles/themes/beach.css';
 import '../styles/themes/date.css';
 
-const lyricsData = [
-    "I'm dancing in the dark",
-    "With you between my arms",
-    "Barefoot on the grass",
-    "Listening to our favorite song",
-    "When you said you looked a mess",
-    "I whispered underneath my breath",
-    "But you heard it",
-    "Darling, you look perfect tonight"
-];
-
 const themes = [
-    { id: 'beach', name: 'beach', img: beachImg, color: '#1d89b5', secondaryColor: '#f5d76e', bgColor: '#589bbaff' },
-    { id: 'dorm', name: 'dorm', img: dormImg, color: '#c4a8f0', secondaryColor: '#7ececa', bgColor: '#493986ff' },
-    { id: 'date', name: 'date', img: dateImg, color: '#e04a5a', secondaryColor: '#f9a8c9', bgColor: '#2a0a14' },
+    { id: 'beach', name: 'beach', img: beachImg, color: '#1d89b5', secondaryColor: '#f5d76e' },
+    { id: 'dorm', name: 'dorm', img: dormImg, color: '#c4a8f0', secondaryColor: '#7ececa' },
+    { id: 'date', name: 'date', img: dateImg, color: '#e04a5a', secondaryColor: '#f9a8c9' },
 ];
 
 const CircularTextButton = ({ theme, onClick }) => {
-    // Repeat text to wrap completely around the circle
     const textStr = `${theme.name.toUpperCase()} • `.repeat(3);
-
     return (
         <div className="theme-btn-wrapper" onClick={onClick}>
             <div className="theme-btn-img" style={{ backgroundImage: `url(${theme.img})` }}></div>
@@ -47,27 +36,105 @@ const CircularTextButton = ({ theme, onClick }) => {
 
 function Room() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const userName = location.state?.userName || 'You';
+
+    // UI state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [lyricIndex, setLyricIndex] = useState(0);
     const [isThemesOpen, setIsThemesOpen] = useState(false);
-    const [currentTheme, setCurrentTheme] = useState(themes[1]); // Default to dorm
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTheme, setCurrentTheme] = useState(themes[1]);
     const [isMicOn, setIsMicOn] = useState(true);
     const [isVideoOn, setIsVideoOn] = useState(true);
 
-    useEffect(() => {
-        if (!isPlaying) return;
-        const interval = setInterval(() => {
-            setLyricIndex(prev => (prev + 1) % lyricsData.length);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [isPlaying]);
+    // Audio + lyric state
+    const audioRef = useRef(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentSong, setCurrentSong] = useState(null);
+    const [parsedLyrics, setParsedLyrics] = useState([]);
+    const [lyricIndex, setLyricIndex] = useState(0);
+    const [progress, setProgress] = useState(0);
 
+    // Tick: every second sync lyric index to audio.currentTime
+    useEffect(() => {
+        if (!isPlaying || parsedLyrics.length === 0) return;
+        const interval = setInterval(() => {
+            if (!audioRef.current) return;
+            const t = audioRef.current.currentTime;
+
+            // Find the last lyric whose time <= current time
+            let idx = 0;
+            for (let i = 0; i < parsedLyrics.length; i++) {
+                if (parsedLyrics[i].time <= t) idx = i;
+                else break;
+            }
+            setLyricIndex(idx);
+
+            // Update progress bar
+            const dur = audioRef.current.duration || 1;
+            setProgress((t / dur) * 100);
+        }, 500);
+        return () => clearInterval(interval);
+    }, [isPlaying, parsedLyrics]);
+
+    // Single click: select song, load lyrics, show in Now Playing — DON'T play yet
+    const handleVinylSelect = useCallback(async (song) => {
+        // Stop current audio if something else is playing
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+
+        setCurrentSong(song);
+        setLyricIndex(0);
+        setProgress(0);
+        setIsPlaying(false);
+
+        // Pre-fetch and parse LRC
+        try {
+            const res = await fetch(song.lrc);
+            const text = await res.text();
+            setParsedLyrics(parseLrc(text));
+        } catch (e) {
+            console.error('Failed to load lyrics', e);
+            setParsedLyrics([]);
+        }
+    }, []);
+
+    // Double click OR play button: actually start playing
+    const startPlaying = useCallback((song) => {
+        const target = song || currentSong;
+        if (!target) return;
+
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+
+        const audio = new Audio(target.audio);
+        audioRef.current = audio;
+        audio.play();
+        setIsPlaying(true);
+        audio.onended = () => setIsPlaying(false);
+    }, [currentSong]);
+
+    // Play/pause toggle (media controls button)
+    const togglePlay = () => {
+        if (!currentSong) return;
+        if (!audioRef.current) {
+            // First time pressing play — create the audio
+            startPlaying(currentSong);
+        } else if (isPlaying) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            audioRef.current.play();
+            setIsPlaying(true);
+        }
+    };
+
+    // Lyric display style
     const getLyricStyle = (idx) => {
-        const n = lyricsData.length;
-        let diff = (idx - lyricIndex) % n;
-        if (diff > n / 2) diff -= n;
-        if (diff < -n / 2) diff += n;
+        const diff = idx - lyricIndex;
 
         if (Math.abs(diff) > 1) {
             return {
@@ -84,7 +151,7 @@ function Room() {
                 transform: 'translateY(0px) scale(1)',
                 color: 'var(--theme-secondary)',
                 fontSize: '32px',
-                textShadow: '0 0 15px color-mix(in srgb, var(--theme-secondary) 60%, transparent), 0 0 30px color-mix(in srgb, var(--theme-secondary) 30%, transparent)',
+                textShadow: '0 0 15px color-mix(in srgb, var(--theme-secondary) 60%, transparent)',
                 fontWeight: 600,
                 filter: 'blur(0)',
                 zIndex: 2
@@ -101,11 +168,15 @@ function Room() {
         };
     };
 
+    // Lyric lines to display (active ± 1)
+    const displayLyrics = parsedLyrics.length > 0
+        ? parsedLyrics
+        : [{ text: 'Click a vinyl to play 🎵', time: 0 }];
+
     return (
-        <div
-            className={`room-container theme-${currentTheme.id} ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}
-        >
-            {/* Top Right Themes Dropdown */}
+        <div className={`room-container theme-${currentTheme.id} ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+
+            {/* Themes Dropdown */}
             <div
                 className="themes-dropdown-container"
                 onMouseEnter={() => setIsThemesOpen(true)}
@@ -129,34 +200,57 @@ function Room() {
 
             {/* Sidebar */}
             <div className={`room-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
-                <h4 style={{ fontFamily: 'Chillax, sans-serif', fontSize: '26px', color: 'var(--theme-primary)', marginBottom: '8px', fontWeight: 600, letterSpacing: '1px' }}>Song Shelf</h4>
+                <h4 style={{ fontFamily: 'Chillax, sans-serif', fontSize: '26px', color: 'var(--theme-primary)', marginBottom: '8px', fontWeight: 600, letterSpacing: '1px' }}>
+                    Song Shelf
+                </h4>
+
+                {/* Now Playing */}
+                {currentSong && (
+                    <div className="now-playing">
+                        <span className="now-playing-label">Now Playing</span>
+                        <span className="now-playing-title">{currentSong.title}</span>
+                        <span className="now-playing-artist">{currentSong.artist}</span>
+                    </div>
+                )}
+
                 <div className="song-shelf">
                     <img className="shelf-bg-img" src={shelfImg} alt="Shelf" />
                     <div className="vinyl-grid">
-                        <div className="vinyl-record" style={{ backgroundColor: '#ffb3ba' }} onClick={() => setIsPlaying(!isPlaying)}>
-                            <div className="vinyl-center">Perfect</div>
-                        </div>
-                        <div className="vinyl-record" style={{ backgroundColor: '#ffdfba' }} onClick={() => setIsPlaying(!isPlaying)}>
-                            <div className="vinyl-center">Lover</div>
-                        </div>
-                        <div className="vinyl-record" style={{ backgroundColor: '#ffffba' }} onClick={() => setIsPlaying(!isPlaying)}>
-                            <div className="vinyl-center">Until I</div>
-                        </div>
-                        <div className="vinyl-record" style={{ backgroundColor: '#baffc9' }} onClick={() => setIsPlaying(!isPlaying)}>
-                            <div className="vinyl-center">Dandelion</div>
-                        </div>
-                        <div className="vinyl-record" style={{ backgroundColor: '#bae1ff' }} onClick={() => setIsPlaying(!isPlaying)}>
-                            <div className="vinyl-center">Those Eyes</div>
-                        </div>
-                        
-                        <div className="vinyl-record add-vinyl" onClick={() => alert('Add song clicked!')}>
-                            <div className="vinyl-center">+ Your Vinyl</div>
+                        {songs.map((song, i) => {
+                            const groupIndex = i % 5;
+                            return (
+                                <React.Fragment key={song.id}>
+                                    {groupIndex === 3 && <div className="grid-spacer" />}
+                                    <div
+                                        className={`vinyl-record ${currentSong?.id === song.id ? 'selected' : ''} ${currentSong?.id === song.id && isPlaying ? 'spinning' : ''}`}
+                                        onClick={() => handleVinylSelect(song)}
+                                        onDoubleClick={() => startPlaying(song)}
+                                        title={song.title}
+                                    >
+                                        <img src={song.vinyl} alt={song.title} className="vinyl-img" />
+                                    </div>
+                                    {groupIndex === 4 && <div className="grid-spacer" />}
+                                </React.Fragment>
+                            );
+                        })}
+
+                        {/* Push Add button to bottom shelf if it would otherwise fit in a gap */}
+                        {songs.length % 5 === 3 && <div className="grid-spacer" />}
+                        {songs.length % 5 >= 3 && songs.length % 5 <= 4 && (
+                            <>
+                                {songs.length % 5 === 3 && <div style={{ gridColumn: 'span 4' }} />}
+                                {songs.length % 5 === 4 && <div style={{ gridColumn: 'span 2' }} />}
+                            </>
+                        )}
+
+                        <div className="vinyl-record add-vinyl" onClick={() => alert('Add song coming soon!')}>
+                            <span style={{ fontSize: '22px', color: 'rgba(255,255,255,0.6)' }}>+</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Toggle Button */}
+            {/* Sidebar Toggle */}
             <button
                 className={`sidebar-toggle ${isSidebarOpen ? 'open' : 'closed'}`}
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -167,52 +261,43 @@ function Room() {
             {/* Main Area */}
             <div className="room-main">
                 <div className="video-half you-half">
-                    <div className="webcam-placeholder">You</div>
+                    <div className="webcam-placeholder">{userName}</div>
                 </div>
                 <div className="video-half them-half">
                     <div className="webcam-placeholder">Them</div>
                 </div>
 
-                {/* Lyrics Float */}
+                {/* Lyrics */}
                 <div className="lyrics-container">
-                    {lyricsData.map((lyric, idx) => (
+                    {displayLyrics.map((lyric, idx) => (
                         <div key={idx} className="lyric" style={getLyricStyle(idx)}>
-                            {lyric}
+                            {lyric.text}
                         </div>
                     ))}
                 </div>
 
-                {/* Media Controls Centered at Bottom */}
+                {/* Media Controls */}
                 <div className="media-controls">
-                    {/* Home Button */}
-                    <button className="media-btn" onClick={() => navigate('/landing')}>
+                    {/* Home */}
+                    <button className="media-btn" onClick={() => { if (audioRef.current) audioRef.current.pause(); navigate('/landing'); }}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
                             <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
                             <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
                         </svg>
                     </button>
 
-                    {/* Mic Toggle */}
-                    <button 
-                        className={`media-btn ${!isMicOn ? 'off' : ''}`}
-                        onClick={() => setIsMicOn(!isMicOn)}
-                    >
+                    {/* Mic */}
+                    <button className={`media-btn ${!isMicOn ? 'off' : ''}`} onClick={() => setIsMicOn(!isMicOn)}>
                         {isMicOn ? '🎙️' : '🔇'}
                     </button>
 
-                    {/* Video Toggle */}
-                    <button 
-                        className={`media-btn ${!isVideoOn ? 'off' : ''}`}
-                        onClick={() => setIsVideoOn(!isVideoOn)}
-                    >
+                    {/* Video */}
+                    <button className={`media-btn ${!isVideoOn ? 'off' : ''}`} onClick={() => setIsVideoOn(!isVideoOn)}>
                         {isVideoOn ? '📹' : '🚫'}
                     </button>
 
-                    {/* Play/Pause Toggle */}
-                    <button 
-                        className="media-btn"
-                        onClick={() => setIsPlaying(!isPlaying)}
-                    >
+                    {/* Play/Pause */}
+                    <button className="media-btn" onClick={togglePlay} disabled={!currentSong}>
                         {isPlaying ? '⏸' : '▶'}
                     </button>
                 </div>
@@ -220,7 +305,7 @@ function Room() {
 
             {/* Progress Bar */}
             <div className="progress-bar-container">
-                <div className="progress-bar-fill"></div>
+                <div className="progress-bar-fill" style={{ width: `${progress}%`, animation: 'none' }}></div>
             </div>
         </div>
     );

@@ -7,20 +7,29 @@ import '../styles/Landing.css';
 
 function Landing() {
     const [code, setCode] = useState('');
+    const [name, setName] = useState('');
     const navigate = useNavigate();
 
     const createRoom = () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        navigate(`/room/${newCode}`);
+        navigate(`/room/${newCode}`, { state: { userName: name.trim() || 'You' } });
     };
 
     const joinRoom = () => {
-        if (code.trim()) navigate(`/room/${code.trim().toUpperCase()}`);
+        if (code.trim()) navigate(`/room/${code.trim().toUpperCase()}`, { state: { userName: name.trim() || 'You' } });
     };
 
     return (
         <div className="landing-screen">
             <h2 className="landing-title">let's sing !</h2>
+
+            <input
+                className="code-input name-input"
+                placeholder="your name... 🌸"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                style={{ maxWidth: '300px' }}
+            />
 
             <div className="landing-cards">
                 <div className="room-card">
