@@ -1,0 +1,107 @@
+.landing-screen {
+  width: 100vw;
+  min-height: 100vh;
+  background: rgb(74, 162, 180);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 40px 20px;
+}
+
+.landing-title {
+  font-family: 'Telma', sans-serif;
+  font-size: 64px;
+  color: #f9a8c9;
+  text-shadow: 0 0 15px rgba(249, 168, 201, 0.5), 0 0 30px rgba(196, 168, 240, 0.4);
+}
+
+.landing-cards {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.room-card {
+  background: rgba(1, 12, 57, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(196, 168, 240, 0.3);
+  border-radius: 20px;
+  padding: 36px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #8a214b;
+  gap: 12px;
+  width: 260px;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(249, 168, 201, 0.5), 0 0 30px rgba(196, 168, 240, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.room-card:hover {
+  transform: translateY(-8px);
+  border-color: #f5d76e;
+  box-shadow: 0 10px 25px rgba(245, 215, 110, 0.2);
+}
+
+.card-image {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+}
+
+.room-card h3 {
+  font-size: 28px;
+  color: #fef6f0;
+  font-family: 'Telma', sans-serif;
+}
+
+.card-sub {
+  font-size: 18px;
+  color: #7ececa;
+}
+
+.code-input {
+  background: rgba(254, 246, 240, 0.1);
+  border: 1px solid rgba(196, 168, 240, 0.5);
+  border-radius: 12px;
+  padding: 10px 16px;
+  color: #fef6f0;
+  font-size: 20px;
+  text-align: center;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.code-input:focus {
+  border-color: #f5d76e;
+  box-shadow: 0 0 12px rgba(245, 215, 110, 0.3);
+}
+
+.code-input::placeholder {
+  color: rgba(254, 246, 240, 0.4);
+}
+
+.home-icon-btn {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  width: 60px;
+  height: auto;
+  cursor: pointer;
+  transition: transform 0.3s ease, filter 0.3s ease;
+  box-shadow: #8a214b;
+  border-radius: 50%;
+  border: 2px solid #8a214b;
+}
+
+.home-icon-btn:hover {
+  transform: scale(1.1) rotate(-8deg);
+  filter: drop-shadow(0 4px 15px rgba(249, 168, 201, 0.5));
+}

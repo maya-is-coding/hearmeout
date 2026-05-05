@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import tulipEnvelope from '../assets/doodles/tulip-envelope.png';
-import micDoodle from '../assets/doodles/mic.png.png';
-import discoDoodle from '../assets/doodles/dicso.png.png';
-import starsDoodle from '../assets/doodles/star.png.png';
-import guitarDoodle from '../assets/doodles/gutiar.png.png';
+import micDoodle from '../assets/doodles/mic.png';
+import discoDoodle from '../assets/doodles/dicso.png';
+import starsDoodle from '../assets/doodles/star.png';
+import guitarDoodle from '../assets/doodles/gutiar.png';
+import sparkleDoodle from '../assets/doodles/sparkle.png';
+import '../styles/Intro.css';
 
 function Intro() {
     const [envelopeOpen, setEnvelopeOpen] = useState(false);
@@ -18,10 +20,11 @@ function Intro() {
             <img src={discoDoodle} alt="Disco" className="doodle d2" />
             <img src={starsDoodle} alt="Stars" className="doodle d3" />
             <img src={guitarDoodle} alt="Guitar" className="doodle d4" />
+            <img src={sparkleDoodle} alt="Sparkle" className="doodle d5" />
 
             {/* app title */}
             <div className="intro-top">
-                <h1 className="intro-title">HearMeOut</h1>
+                <h1 className="intro-title">Hear Me Out</h1>
                 <p className="intro-sub">a little place to sing together </p>
             </div>
 
