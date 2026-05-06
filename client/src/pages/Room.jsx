@@ -1,9 +1,33 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 import beachImg from '../assets/doodles/room elements/beach.jpeg';
 import dateImg from '../assets/doodles/room elements/date.jpeg';
 import dormImg from '../assets/doodles/room elements/dorm.jpeg';
 import shelfImg from '../assets/doodles/room elements/shelfs.jpeg';
+import micImg from '../assets/doodles/room elements/mic.png';
+
+// Beach elements
+import beachJellyfish from '../assets/doodles/room elements/beach elemets/jellyfish.png';
+import beachMic from '../assets/doodles/room elements/beach elemets/mic.png';
+import beachShells from '../assets/doodles/room elements/beach elemets/shells.png';
+import beachWaves from '../assets/doodles/room elements/beach elemets/waves.png';
+import beachWhale from '../assets/doodles/room elements/beach elemets/whale.png';
+
+// Date elements
+import dateBall from '../assets/doodles/room elements/date elemets/ball.png';
+import dateCards from '../assets/doodles/room elements/date elemets/cards.png';
+import dateFlowers from '../assets/doodles/room elements/date elemets/flowers.png';
+import dateMic from '../assets/doodles/room elements/date elemets/mic.png';
+import datePhone from '../assets/doodles/room elements/date elemets/phone.png';
+
+// Dorm elements
+
+
+import dormMic from '../assets/doodles/room elements/dorm elements/mic.png';
+import dormPlant from '../assets/doodles/room elements/dorm elements/plant.png';
+import dormWindChime from '../assets/doodles/room elements/dorm elements/wind charm.png';
+
 import songs from '../assets/songs/songList';
 import parseLrc from '../parseLrc';
 import '../styles/Room.css';
@@ -45,6 +69,9 @@ function Room() {
     const [currentTheme, setCurrentTheme] = useState(themes[1]);
     const [isMicOn, setIsMicOn] = useState(true);
     const [isVideoOn, setIsVideoOn] = useState(true);
+    const [layoutMode, setLayoutMode] = useState('split'); // 'split' or 'pip'
+    const [bubbles, setBubbles] = useState([]); // For beach theme
+    const [hearts, setHearts] = useState([]); // For date theme
 
     // Audio + lyric state
     const audioRef = useRef(null);
@@ -76,9 +103,80 @@ function Room() {
         return () => clearInterval(interval);
     }, [isPlaying, parsedLyrics]);
 
-    // Single click: select song, load lyrics, show in Now Playing — DON'T play yet
-    const handleVinylSelect = useCallback(async (song) => {
-        // Stop current audio if something else is playing
+    // Handle theme-specific background effects (Confetti intervals, Bubbles, Hearts)
+    useEffect(() => {
+        if (!isPlaying) {
+            setBubbles([]);
+            setHearts([]);
+            return;
+        }
+
+        let interval;
+        const themeId = currentTheme.id;
+
+        if (themeId === 'date') {
+            // Generate 20 hearts
+            const newHearts = [];
+            for (let i = 0; i < 20; i++) {
+                newHearts.push({
+                    id: i,
+                    left: Math.random() * 100 + '%',
+                    size: (Math.random() * 20 + 15) + 'px',
+                    duration: (Math.random() * 4 + 3) + 's',
+                    delay: (Math.random() * 5) + 's'
+                });
+            }
+            setHearts(newHearts);
+        } else if (themeId === 'dorm') {
+            interval = setInterval(() => {
+                confetti({
+                    particleCount: 1,
+                    colors: ['#c4a8f0', '#7ececa', '#ffd700'],
+                    shapes: ['star'],
+                    gravity: 0.2,
+                    drift: 0.3,
+                    spread: 60,
+                    origin: { y: 0.2, x: Math.random() },
+                    ticks: 200
+                });
+            }, 800);
+        } else if (themeId === 'beach') {
+            // Generate 15 bubbles
+            const newBubbles = [];
+            for (let i = 0; i < 15; i++) {
+                newBubbles.push({
+                    id: i,
+                    left: Math.random() * 100 + '%',
+                    size: (Math.random() * 20 + 20) + 'px', // 20px-40px
+                    duration: (Math.random() * 5 + 5) + 's', // 5s-10s
+                    delay: (Math.random() * 8) + 's' // 0s-8s
+                });
+            }
+            setBubbles(newBubbles);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+            setBubbles([]);
+            setHearts([]);
+        };
+    }, [isPlaying, currentTheme.id]);
+
+    // One-tap play/pause for vinyls
+    const handleVinylClick = useCallback(async (song) => {
+        // If clicking the same song that is already playing, toggle pause
+        if (currentSong?.id === song.id && audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+                setIsPlaying(false);
+            } else {
+                audioRef.current.play();
+                setIsPlaying(true);
+            }
+            return;
+        }
+
+        // Otherwise, stop current and start new song
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
@@ -87,9 +185,9 @@ function Room() {
         setCurrentSong(song);
         setLyricIndex(0);
         setProgress(0);
-        setIsPlaying(false);
+        setIsPlaying(true);
 
-        // Pre-fetch and parse LRC
+        // Load lyrics
         try {
             const res = await fetch(song.lrc);
             const text = await res.text();
@@ -98,31 +196,23 @@ function Room() {
             console.error('Failed to load lyrics', e);
             setParsedLyrics([]);
         }
-    }, []);
 
-    // Double click OR play button: actually start playing
-    const startPlaying = useCallback((song) => {
-        const target = song || currentSong;
-        if (!target) return;
-
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-
-        const audio = new Audio(target.audio);
+        // Start Audio
+        const audio = new Audio(song.audio);
         audioRef.current = audio;
-        audio.play();
-        setIsPlaying(true);
-        audio.onended = () => setIsPlaying(false);
-    }, [currentSong]);
+        audio.play().catch(err => console.error("Playback failed:", err));
+        
+        audio.onended = () => {
+            setIsPlaying(false);
+            triggerThemeConfetti();
+        };
+    }, [currentSong, isPlaying]);
 
-    // Play/pause toggle (media controls button)
+    // Play/pause toggle (central mic button)
     const togglePlay = () => {
         if (!currentSong) return;
         if (!audioRef.current) {
-            // First time pressing play — create the audio
-            startPlaying(currentSong);
+            handleVinylClick(currentSong);
         } else if (isPlaying) {
             audioRef.current.pause();
             setIsPlaying(false);
@@ -131,6 +221,7 @@ function Room() {
             setIsPlaying(true);
         }
     };
+
 
     // Lyric display style
     const getLyricStyle = (idx) => {
@@ -167,14 +258,124 @@ function Room() {
             zIndex: 1
         };
     };
+    
+    // Manual celebration burst
+    const triggerThemeConfetti = () => {
+        const themeId = currentTheme.id;
+        
+        const config = {
+            particleCount: 80,
+            spread: 100,
+            origin: { y: 0.6 },
+            ticks: 250,
+            gravity: 0.8
+        };
+
+        if (themeId === 'beach') {
+            confetti({
+                ...config,
+                colors: ['#7ececa', '#f5d76e', '#ffffff'],
+                shapes: ['circle']
+            });
+        } else if (themeId === 'dorm') {
+            confetti({
+                ...config,
+                colors: ['#c4a8f0', '#7ececa', '#ffd700'],
+                shapes: ['circle', 'square']
+            });
+        } else { // date
+            confetti({
+                ...config,
+                colors: ['#e04a5a', '#f9a8c9', '#ff6b8a'],
+                shapes: ['circle']
+            });
+        }
+    };
+
+    const getThemeMic = () => {
+        if (currentTheme.id === 'beach') return beachMic;
+        if (currentTheme.id === 'date') return dateMic;
+        if (currentTheme.id === 'dorm') return dormMic;
+        return micImg;
+    };
 
     // Lyric lines to display (active ± 1)
     const displayLyrics = parsedLyrics.length > 0
         ? parsedLyrics
         : [{ text: 'Click a vinyl to play 🎵', time: 0 }];
 
+
     return (
-        <div className={`room-container theme-${currentTheme.id} ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        <div className={`room-container theme-${currentTheme.id} ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'} layout-${layoutMode}`}>
+            
+            {/* Theme Specific Doodles */}
+            <div className="theme-doodles-container">
+                {currentTheme.id === 'beach' && (
+                    <>
+                        <img src={beachJellyfish} className="doodle-item beach-jelly-1" alt="" />
+                        <img src={beachShells} className="doodle-item beach-shells" alt="" />
+                        <img src={beachWaves} className="doodle-item beach-waves" alt="" />
+                        <img src={beachWhale} className="doodle-item beach-whale" alt="" />
+                    </>
+                )}
+                {currentTheme.id === 'date' && (
+                    <>
+                        <img src={datePhone} className="doodle-item date-phone" alt="" />
+                        <img src={dateFlowers} className="doodle-item date-flowers" alt="" />
+                        <img src={dateBall} className="doodle-item date-ball" alt="" />
+                        <img src={dateCards} className="doodle-item date-cards" alt="" />
+                    </>
+                )}
+                {currentTheme.id === 'dorm' && (
+                    <>
+                        <img src={dormWindChime} className="doodle-item dorm-windchime" alt="" />
+                        <img src={dormPlant} className="doodle-item dorm-plant-1" alt="" />
+                        <img src={dormPlant} className="doodle-item dorm-plant-2" alt="" />
+                        <img src={dormMic} className="doodle-item dorm-can" alt="" />
+                    </>
+                )}
+            </div>
+
+            {/* Custom Bubbles for Beach Theme */}
+            {currentTheme.id === 'beach' && isPlaying && (
+                <div className="bubble-container">
+                    {bubbles.map(b => (
+                        <div 
+                            key={b.id} 
+                            className="bubble" 
+                            style={{ 
+                                left: b.left, 
+                                width: b.size, 
+                                height: b.size, 
+                                animationDuration: b.duration,
+                                animationDelay: b.delay
+                            }} 
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* Custom Hearts for Date Theme */}
+            {currentTheme.id === 'date' && isPlaying && (
+                <div className="heart-container">
+                    {hearts.map(h => (
+                        <div 
+                            key={h.id} 
+                            className="heart-particle" 
+                            style={{ 
+                                left: h.left, 
+                                fontSize: h.size, 
+                                animationDuration: h.duration,
+                                animationDelay: h.delay
+                            }} 
+                        >
+                            ❤️
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Themes Dropdown */}
 
             {/* Themes Dropdown */}
             <div
@@ -223,8 +424,7 @@ function Room() {
                                     {groupIndex === 3 && <div className="grid-spacer" />}
                                     <div
                                         className={`vinyl-record ${currentSong?.id === song.id ? 'selected' : ''} ${currentSong?.id === song.id && isPlaying ? 'spinning' : ''}`}
-                                        onClick={() => handleVinylSelect(song)}
-                                        onDoubleClick={() => startPlaying(song)}
+                                        onClick={() => handleVinylClick(song)}
                                         title={song.title}
                                     >
                                         <img src={song.vinyl} alt={song.title} className="vinyl-img" />
@@ -261,10 +461,16 @@ function Room() {
             {/* Main Area */}
             <div className="room-main">
                 <div className="video-half you-half">
-                    <div className="webcam-placeholder">{userName}</div>
+                    <div className="webcam-placeholder">
+                        <img src={getThemeMic()} className="webcam-mic" alt="" />
+                        <span className="webcam-name">{userName}</span>
+                    </div>
                 </div>
                 <div className="video-half them-half">
-                    <div className="webcam-placeholder">Them</div>
+                    <div className="webcam-placeholder">
+                        <img src={getThemeMic()} className="webcam-mic" alt="" />
+                        <span className="webcam-name">Them</span>
+                    </div>
                 </div>
 
                 {/* Lyrics */}
@@ -297,8 +503,18 @@ function Room() {
                     </button>
 
                     {/* Play/Pause */}
-                    <button className="media-btn" onClick={togglePlay} disabled={!currentSong}>
-                        {isPlaying ? '⏸' : '▶'}
+                    <button className={`media-btn play-pause-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlay} disabled={!currentSong}>
+                        <img src={micImg} alt="Play/Pause" className="play-pause-mic" />
+                    </button>
+
+                    {/* Layout Switch */}
+                    <button className="media-btn" onClick={() => setLayoutMode(layoutMode === 'split' ? 'pip' : 'split')} title="Switch Layout">
+                        {layoutMode === 'split' ? '🔲' : '🔳'}
+                    </button>
+
+                    {/* Visual Effect */}
+                    <button className="media-btn effect-trigger" onClick={() => triggerThemeConfetti()} title="Celebrate!">
+                        {currentTheme.id === 'dorm' ? '🎉' : currentTheme.id === 'beach' ? '🫧' : '💖'}
                     </button>
                 </div>
             </div>

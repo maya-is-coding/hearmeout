@@ -209,8 +209,13 @@
 }
 
 @keyframes vinylSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .vinyl-record.spinning {
@@ -247,9 +252,9 @@
   grid-template-columns: repeat(6, 1fr);
   position: relative;
   z-index: 1;
-  padding: 2px 10px;
-  margin-top: -8px;
-  row-gap: 5px; /* Tighten for shelf alignment */
+  padding: 15px 10px;
+  row-gap: 5px;
+  /* Tighten for shelf alignment */
   width: 100%;
 }
 
@@ -307,8 +312,8 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: rgba(0,0,0,0.55);
-  border: 2px solid rgba(255,255,255,0.25);
+  background-color: rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   z-index: 2;
   flex-shrink: 0;
 }
@@ -335,7 +340,7 @@
   align-items: center;
   gap: 1px;
   z-index: 30;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(6px);
   /* always upright even when vinyl is spinning */
   animation: counterSpin 3s linear infinite;
@@ -347,20 +352,25 @@
 }
 
 @keyframes counterSpin {
-  from { transform: translateX(-50%) translateY(0) rotate(0deg); }
-  to   { transform: translateX(-50%) translateY(0) rotate(-360deg); }
+  from {
+    transform: translateX(-50%) translateY(0) rotate(0deg);
+  }
+
+  to {
+    transform: translateX(-50%) translateY(0) rotate(-360deg);
+  }
 }
 
 .vinyl-tooltip span {
   font-family: 'Amulya', sans-serif;
   font-size: 10px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.55);
   font-weight: 400;
 }
 
 /* Selected vinyl glows */
 .vinyl-record.selected {
-  box-shadow: 0 0 0 3px var(--theme-secondary), 0 6px 20px rgba(0,0,0,0.6);
+  box-shadow: 0 0 0 3px var(--theme-secondary), 0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
 .vinyl-record:hover {
@@ -406,6 +416,42 @@
 
 .you-half {
   border-right: 1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 1;
+}
+
+/* PiP Layout */
+.layout-pip .them-half {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  z-index: 0;
+}
+
+.layout-pip .you-half {
+  position: absolute;
+  bottom: 100px;
+  /* above media controls */
+  right: 40px;
+  width: 240px;
+  height: 160px;
+  flex: none;
+  border: 2px solid var(--theme-primary);
+  border-radius: 16px;
+  background: rgba(13, 47, 47, 0.8);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  border-right: none;
+}
+
+.layout-pip .you-half .webcam-placeholder {
+  width: 60px;
+  height: 60px;
+  font-size: 14px;
 }
 
 .webcam-placeholder {
@@ -489,13 +535,13 @@
 }
 
 .media-controls {
-  position: absolute;
+  position: fixed;
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 15px;
-  z-index: 20;
+  z-index: 50;
 }
 
 .media-btn {
@@ -515,6 +561,13 @@
   box-shadow: 0 0 10px color-mix(in srgb, var(--theme-primary) 80%, transparent);
 }
 
+.media-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(1);
+  box-shadow: none;
+}
+
 .media-btn.off {
   color: #f9a8c9;
   border-color: rgba(249, 168, 201, 0.4);
@@ -531,6 +584,77 @@
   color: #0d2f2f;
 }
 
+/* Special Play/Pause Button */
+.media-btn.play-pause-btn {
+  width: 80px;
+  height: 80px;
+  margin: -15px 5px;
+  /* Offset to make it look bigger without pushing others too much */
+  background: color-mix(in srgb, var(--theme-primary) 20%, rgba(13, 47, 47, 0.8));
+  border: 2px solid var(--theme-primary);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--theme-primary) 50%, transparent);
+  position: relative;
+  overflow: visible;
+}
+
+.media-btn.play-pause-btn:hover {
+  transform: scale(1.15) rotate(5deg);
+  box-shadow: 0 0 30px var(--theme-primary);
+}
+
+.play-pause-mic {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+  filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+  transition: all 0.3s ease;
+}
+
+.media-btn.play-pause-btn.playing .play-pause-mic {
+  filter: brightness(0) invert(1) drop-shadow(0 0 12px var(--theme-primary));
+  transform: scale(1.1);
+}
+
+
+.room-container.theme-beach .media-btn.play-pause-btn {
+  border-color: #f5d76e;
+  box-shadow: 0 0 20px #f5d76e;
+}
+
+.room-container.theme-dorm .media-btn.play-pause-btn {
+  border-color: #c4a8f0;
+  box-shadow: 0 0 20px #c4a8f0;
+}
+
+.room-container.theme-date .media-btn.play-pause-btn {
+  border-color: #f9a8c9;
+  box-shadow: 0 0 20px #f9a8c9;
+}
+
+/* Pulse animation for when it's playing */
+.media-btn.play-pause-btn.playing {
+  animation: micPulse 2s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+  0% {
+    box-shadow: 0 0 20px var(--theme-primary);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow: 0 0 40px var(--theme-primary);
+    transform: scale(1.05);
+  }
+
+  100% {
+    box-shadow: 0 0 20px var(--theme-primary);
+    transform: scale(1);
+  }
+}
+
+
 
 
 @keyframes progressAnim {
@@ -545,4 +669,373 @@
   100% {
     width: 0%;
   }
+}
+
+/* Webcam Mic Watermark */
+.webcam-placeholder {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Chillax', sans-serif;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  letter-spacing: 2px;
+}
+
+.webcam-mic {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40%;
+  max-width: 180px;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.12;
+  filter: brightness(0) invert(1);
+  pointer-events: none;
+}
+
+.webcam-name {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 2;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+/* Theme Doodles */
+.theme-doodles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  /* below media-controls (z-index:20) */
+  overflow: visible;
+}
+
+/* Base sticker style — full color, no white filter */
+.doodle-item {
+  position: absolute;
+  object-fit: contain;
+  opacity: 1;
+  filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+}
+
+/* ── Sway: pivot from top (hanging) ── */
+@keyframes sway {
+  0% {
+    transform: rotate(-6deg);
+  }
+
+  50% {
+    transform: rotate(6deg);
+  }
+
+  100% {
+    transform: rotate(-6deg);
+  }
+}
+
+/* ── Gentle sway: pivot from top (plants) ── */
+@keyframes swayGentle {
+  0% {
+    transform: rotate(-4deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
+
+  100% {
+    transform: rotate(-4deg);
+  }
+}
+
+/* ── Phone hanging bob ── */
+@keyframes hangBob {
+  0% {
+    transform: rotate(5deg) translateY(0px);
+  }
+
+  50% {
+    transform: rotate(9deg) translateY(5px);
+  }
+
+  100% {
+    transform: rotate(5deg) translateY(0px);
+  }
+}
+
+/* ── Bounce + glow for static elements ── */
+@keyframes bounceglow {
+  0% {
+    transform: translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+
+  40% {
+    transform: translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  60% {
+    transform: translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  100% {
+    transform: translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+}
+
+/* ── Bounce + glow WITH rotation baked in (flowers) ── */
+@keyframes bounceglowFlowers {
+  0% {
+    transform: rotate(20deg) translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+
+  40% {
+    transform: rotate(20deg) translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  60% {
+    transform: rotate(20deg) translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  100% {
+    transform: rotate(20deg) translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+}
+
+/* ── Bounce + glow WITH rotation baked in (cards) ── */
+@keyframes bounceglowCards {
+  0% {
+    transform: rotate(-6deg) translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+
+  40% {
+    transform: rotate(-6deg) translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  60% {
+    transform: rotate(-6deg) translateY(-8px);
+    filter: drop-shadow(2px 12px 16px rgba(255, 255, 255, 0.25));
+  }
+
+  100% {
+    transform: rotate(-6deg) translateY(0px);
+    filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  }
+}
+
+/* ──────────────── BEACH ──────────────── */
+/* Jellyfish: top-right, sway from very top */
+.beach-jelly-1 {
+  top: 1;
+  right: 15%;
+  width: 160px;
+  transform-origin: top center;
+  animation: sway 4.5s ease-in-out infinite;
+}
+
+/* Shells: bigger, bottom-left, bounce+glow */
+.beach-shells {
+  bottom: 65%;
+  left: 4%;
+  width: 250px;
+  animation: bounceglow 3.5s ease-in-out infinite;
+}
+
+/* Waves: thin bottom strip — kept SHORT so buttons above are never covered */
+.beach-waves {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70px;
+  opacity: 0.7;
+  object-fit: fill;
+}
+
+/* Whale: above waves, bounce+glow */
+.beach-whale {
+  bottom: 7%;
+  right: 5%;
+  width: 210px;
+  animation: bounceglow 4s ease-in-out infinite 0.8s;
+}
+
+/* ──────────────── DATE ──────────────── */
+/* Phone: hanging top-right, bobs on string */
+.date-phone {
+  top: 0;
+  right: 80px;
+  width: 140px;
+  transform-origin: top center;
+  animation: hangBob 3.5s ease-in-out infinite;
+}
+
+/* Flowers: rotation baked INTO bounceglowFlowers — no static transform */
+.date-flowers {
+  top: 0;
+  left: 10px;
+  width: 260px;
+  animation: bounceglowFlowers 3s ease-in-out infinite;
+}
+
+/* Ball: bounce+glow */
+.date-ball {
+  bottom: 22%;
+  right: 7%;
+  width: 100px;
+  animation: bounceglow 2.8s ease-in-out infinite 0.4s;
+}
+
+/* Cards: rotation baked INTO bounceglowCards — no static transform */
+.date-cards {
+  bottom: 16%;
+  left: 5%;
+  width: 130px;
+  animation: bounceglowCards 3.2s ease-in-out infinite 1s;
+}
+
+/* ──────────────── DORM ──────────────── */
+/* Wind chime: firmly at top edge, left of Themes button, bigger */
+.dorm-windchime {
+  top: 0;
+  right: 200px;
+  width: 155px;
+  transform-origin: top center;
+  animation: sway 3s ease-in-out infinite;
+}
+
+/* Plant-1: leftmost, bigger — hangs from top */
+.dorm-plant-1 {
+  top: 0;
+  left: 20px;
+  width: 180px;
+  transform-origin: top center;
+  animation: swayGentle 4s ease-in-out infinite;
+}
+
+/* Plant-2: just right of plant-1, smaller */
+.dorm-plant-2 {
+  top: 0;
+  left: 170px;
+  width: 130px;
+  transform-origin: top center;
+  animation: swayGentle 5s ease-in-out infinite reverse;
+}
+
+/* Can (mic sticker): bottom-right, big, bounce+glow */
+.dorm-can {
+  bottom: 4%;
+  right: 6%;
+  width: 170px;
+  animation: bounceglow 4s ease-in-out infinite 0.5s;
+}
+
+
+/* Floating Bubbles (Beach Theme) */
+.bubble-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.bubble {
+  position: absolute;
+  bottom: -50px;
+  background: rgba(126, 206, 202, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  animation: floatUp 8s linear infinite;
+  backdrop-filter: blur(1px);
+}
+
+/* Falling Hearts (Date Theme) */
+.heart-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.heart-particle {
+  position: absolute;
+  top: -50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fallDown linear infinite;
+  filter: drop-shadow(0 0 5px rgba(224, 74, 90, 0.5));
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-110vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes fallDown {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(110vh);
+    opacity: 0;
+  }
+}
+
+/* Custom button glow for effects */
+.media-btn.effect-trigger:active {
+  transform: scale(0.9) translateY(2px);
+  box-shadow: 0 0 30px var(--theme-secondary);
 }
