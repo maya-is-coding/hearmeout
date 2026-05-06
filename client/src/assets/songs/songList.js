@@ -12,6 +12,7 @@ import humsafarVinyl from './humsafar/vinyl.png';
 
 import gehrahuaLrc from './gehrahua/lyrics.lrc';
 import gehrahuaVinyl from './gehrahua/vinyl.png';
+import gehrahuaAudio from './gehrahua/audio.mp3';
 
 import mirrorsAudio from './mirrors/audio.mp3.mp3';
 import mirrorsLrc from './mirrors/lyrics.lrc';
@@ -19,7 +20,6 @@ import mirrorsVinyl from './mirrors/image-removebg-preview (9).png';
 
 // Note: gehrahuaAudio is currently missing from the folder. 
 // Please check the filename in src/assets/songs/gehrahua/
-const gehrahuaAudio = null; 
 
 const songs = [
   {
@@ -52,6 +52,7 @@ const songs = [
     artist: 'Arijit Singh',
     vinyl: gehrahuaVinyl,
     audio: gehrahuaAudio,
+
     lrc: gehrahuaLrc,
   },
   {
