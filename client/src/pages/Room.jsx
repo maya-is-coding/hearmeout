@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import socket from '../socket';
 import confetti from 'canvas-confetti';
 import beachImg from '../assets/doodles/room elements/beach.jpeg';
 import dateImg from '../assets/doodles/room elements/date.jpeg';
 import dormImg from '../assets/doodles/room elements/dorm.jpeg';
 import shelfImg from '../assets/doodles/room elements/shelfs.jpeg';
 import micImg from '../assets/doodles/room elements/mic.png';
+import cameraImg from '../assets/doodles/room elements/camera.png';
 
 // Beach elements
 import beachJellyfish from '../assets/doodles/room elements/beach elemets/jellyfish.png';
@@ -59,11 +61,14 @@ const CircularTextButton = ({ theme, onClick }) => {
 };
 
 function Room() {
+    const { roomCode } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const userName = location.state?.userName || 'You';
 
     // UI state
+    const [partnerConnected, setPartnerConnected] = useState(false);
+    const [partnerName, setPartnerName] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isThemesOpen, setIsThemesOpen] = useState(false);
     const [currentTheme, setCurrentTheme] = useState(themes[1]);
@@ -80,6 +85,12 @@ function Room() {
     const [parsedLyrics, setParsedLyrics] = useState([]);
     const [lyricIndex, setLyricIndex] = useState(0);
     const [progress, setProgress] = useState(0);
+
+    // Keep refs of current state for socket callbacks without triggering reconnects
+    const syncStateRef = useRef({ song: null, audio: null });
+    useEffect(() => {
+        syncStateRef.current = { song: currentSong, audio: audioRef.current };
+    }, [currentSong, isPlaying]);
 
     // Tick: every second sync lyric index to audio.currentTime
     useEffect(() => {
@@ -102,6 +113,39 @@ function Room() {
         }, 500);
         return () => clearInterval(interval);
     }, [isPlaying, parsedLyrics]);
+
+    // Handle Socket Connection
+    useEffect(() => {
+        socket.emit('join-room', { code: roomCode, name: userName });
+
+        socket.on('partner-joined', (pName) => {
+            setPartnerConnected(true);
+            setPartnerName(pName || 'Them');
+            console.log('partner joined!', pName);
+            
+            // Sync current state to the joining partner
+            const state = syncStateRef.current;
+            if (state.audio && state.song) {
+                socket.emit('sync-song', {
+                    code: roomCode,
+                    songId: state.song.id,
+                    timestamp: state.audio.currentTime,
+                    isPlaying: !state.audio.paused
+                });
+            }
+        });
+
+        socket.on('partner-left', () => {
+            setPartnerConnected(false);
+            setPartnerName('');
+            console.log('partner left');
+        });
+
+        return () => {
+            socket.off('partner-joined');
+            socket.off('partner-left');
+        };
+    }, [roomCode, userName]);
 
     // Handle theme-specific background effects (Confetti intervals, Bubbles, Hearts)
     useEffect(() => {
@@ -136,10 +180,12 @@ function Room() {
                     gravity: 0.2,
                     drift: 0.3,
                     spread: 60,
+                    startVelocity: 15,
+                    scalar: 0.8,
                     origin: { y: 0.2, x: Math.random() },
                     ticks: 200
                 });
-            }, 800);
+            }, 1200);
         } else if (themeId === 'beach') {
             // Generate 15 bubbles
             const newBubbles = [];
@@ -163,15 +209,17 @@ function Room() {
     }, [isPlaying, currentTheme.id]);
 
     // One-tap play/pause for vinyls
-    const handleVinylClick = useCallback(async (song) => {
+    const handleVinylClick = useCallback(async (song, fromSocket = false, timestamp = 0, autoPlay = true) => {
         // If clicking the same song that is already playing, toggle pause
-        if (currentSong?.id === song.id && audioRef.current) {
+        if (!fromSocket && currentSong?.id === song.id && audioRef.current) {
             if (isPlaying) {
                 audioRef.current.pause();
                 setIsPlaying(false);
+                socket.emit('pause-song', { code: roomCode, timestamp: audioRef.current.currentTime });
             } else {
-                audioRef.current.play();
+                audioRef.current.play().catch(err => console.error("Playback failed:", err));
                 setIsPlaying(true);
+                socket.emit('resume-song', { code: roomCode, timestamp: audioRef.current.currentTime });
             }
             return;
         }
@@ -185,7 +233,7 @@ function Room() {
         setCurrentSong(song);
         setLyricIndex(0);
         setProgress(0);
-        setIsPlaying(true);
+        setIsPlaying(autoPlay);
 
         // Load lyrics
         try {
@@ -200,26 +248,73 @@ function Room() {
         // Start Audio
         const audio = new Audio(song.audio);
         audioRef.current = audio;
-        audio.play().catch(err => console.error("Playback failed:", err));
-        
+        audio.currentTime = timestamp;
+
+        if (autoPlay) {
+            audio.play().catch(err => console.error("Playback failed:", err));
+        }
+
+        if (!fromSocket) {
+            socket.emit('play-song', {
+                code: roomCode,
+                songId: song.id,
+                timestamp: timestamp
+            });
+        }
+
         audio.onended = () => {
             setIsPlaying(false);
             triggerThemeConfetti();
         };
-    }, [currentSong, isPlaying]);
+    }, [currentSong, isPlaying, roomCode]);
+
+    // Listen for partner playing or pausing a song
+    useEffect(() => {
+        const onPlaySong = ({ songId, timestamp }) => {
+            const song = songs.find(s => s.id === songId);
+            if (song) handleVinylClick(song, true, timestamp, true);
+        };
+        
+        const onPauseSong = ({ timestamp }) => {
+            if (audioRef.current) {
+                if (timestamp !== undefined) audioRef.current.currentTime = timestamp;
+                audioRef.current.pause();
+                setIsPlaying(false);
+            }
+        };
+        
+        const onResumeSong = ({ timestamp }) => {
+            if (audioRef.current) {
+                if (timestamp !== undefined) audioRef.current.currentTime = timestamp;
+                audioRef.current.play().catch(err => console.error("Playback failed:", err));
+                setIsPlaying(true);
+            }
+        };
+
+        const onSyncSong = ({ songId, timestamp, isPlaying: partnerPlaying }) => {
+            const song = songs.find(s => s.id === songId);
+            if (!song) return;
+            // Join mid-song: we handle loading and seeking
+            handleVinylClick(song, true, timestamp, partnerPlaying);
+        };
+
+        socket.on('play-song', onPlaySong);
+        socket.on('pause-song', onPauseSong);
+        socket.on('resume-song', onResumeSong);
+        socket.on('sync-song', onSyncSong);
+        
+        return () => {
+            socket.off('play-song', onPlaySong);
+            socket.off('pause-song', onPauseSong);
+            socket.off('resume-song', onResumeSong);
+            socket.off('sync-song', onSyncSong);
+        };
+    }, [handleVinylClick]);
 
     // Play/pause toggle (central mic button)
     const togglePlay = () => {
         if (!currentSong) return;
-        if (!audioRef.current) {
-            handleVinylClick(currentSong);
-        } else if (isPlaying) {
-            audioRef.current.pause();
-            setIsPlaying(false);
-        } else {
-            audioRef.current.play();
-            setIsPlaying(true);
-        }
+        handleVinylClick(currentSong);
     };
 
 
@@ -241,7 +336,7 @@ function Room() {
                 opacity: 1,
                 transform: 'translateY(0px) scale(1)',
                 color: 'var(--theme-secondary)',
-                fontSize: '32px',
+                fontSize: '24px',
                 textShadow: '0 0 15px color-mix(in srgb, var(--theme-secondary) 60%, transparent)',
                 fontWeight: 600,
                 filter: 'blur(0)',
@@ -253,16 +348,16 @@ function Room() {
             opacity: 1,
             transform: `translateY(${diff * 50}px) scale(0.8)`,
             color: 'rgba(255, 255, 255, 0.3)',
-            fontSize: '24px',
+            fontSize: '16px',
             filter: 'blur(2px)',
             zIndex: 1
         };
     };
-    
+
     // Manual celebration burst
     const triggerThemeConfetti = () => {
         const themeId = currentTheme.id;
-        
+
         const config = {
             particleCount: 80,
             spread: 100,
@@ -307,7 +402,7 @@ function Room() {
 
     return (
         <div className={`room-container theme-${currentTheme.id} ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'} layout-${layoutMode}`}>
-            
+
             {/* Theme Specific Doodles */}
             <div className="theme-doodles-container">
                 {currentTheme.id === 'beach' && (
@@ -331,7 +426,6 @@ function Room() {
                         <img src={dormWindChime} className="doodle-item dorm-windchime" alt="" />
                         <img src={dormPlant} className="doodle-item dorm-plant-1" alt="" />
                         <img src={dormPlant} className="doodle-item dorm-plant-2" alt="" />
-                        <img src={dormMic} className="doodle-item dorm-can" alt="" />
                     </>
                 )}
             </div>
@@ -340,16 +434,16 @@ function Room() {
             {currentTheme.id === 'beach' && isPlaying && (
                 <div className="bubble-container">
                     {bubbles.map(b => (
-                        <div 
-                            key={b.id} 
-                            className="bubble" 
-                            style={{ 
-                                left: b.left, 
-                                width: b.size, 
-                                height: b.size, 
+                        <div
+                            key={b.id}
+                            className="bubble"
+                            style={{
+                                left: b.left,
+                                width: b.size,
+                                height: b.size,
                                 animationDuration: b.duration,
                                 animationDelay: b.delay
-                            }} 
+                            }}
                         />
                     ))}
                 </div>
@@ -359,15 +453,15 @@ function Room() {
             {currentTheme.id === 'date' && isPlaying && (
                 <div className="heart-container">
                     {hearts.map(h => (
-                        <div 
-                            key={h.id} 
-                            className="heart-particle" 
-                            style={{ 
-                                left: h.left, 
-                                fontSize: h.size, 
+                        <div
+                            key={h.id}
+                            className="heart-particle"
+                            style={{
+                                left: h.left,
+                                fontSize: h.size,
                                 animationDuration: h.duration,
                                 animationDelay: h.delay
-                            }} 
+                            }}
                         >
                             ❤️
                         </div>
@@ -460,17 +554,17 @@ function Room() {
 
             {/* Main Area */}
             <div className="room-main">
-                <div className="video-half you-half">
-                    <div className="webcam-placeholder">
-                        <img src={getThemeMic()} className="webcam-mic" alt="" />
-                        <span className="webcam-name">{userName}</span>
-                    </div>
-                </div>
                 <div className="video-half them-half">
                     <div className="webcam-placeholder">
-                        <img src={getThemeMic()} className="webcam-mic" alt="" />
-                        <span className="webcam-name">Them</span>
+                        <span className="webcam-name">{partnerConnected ? partnerName : 'waiting...'}</span>
                     </div>
+                    {partnerConnected && <img src={getThemeMic()} className="floating-mic left-mic" alt="" />}
+                </div>
+                <div className="video-half you-half">
+                    <div className="webcam-placeholder">
+                        <span className="webcam-name">{userName}</span>
+                    </div>
+                    {isMicOn && <img src={getThemeMic()} className="floating-mic right-mic" alt="" />}
                 </div>
 
                 {/* Lyrics */}
@@ -493,23 +587,47 @@ function Room() {
                     </button>
 
                     {/* Mic */}
-                    <button className={`media-btn ${!isMicOn ? 'off' : ''}`} onClick={() => setIsMicOn(!isMicOn)}>
-                        {isMicOn ? '🎙️' : '🔇'}
+                    <button className={`media-btn ${!isMicOn ? 'off' : ''}`} onClick={() => setIsMicOn(!isMicOn)} title="Toggle Microphone">
+                        {isMicOn ? (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                            </svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M19 11h-2c0 .91-.26 1.75-.69 2.48l1.46 1.46A6.921 6.921 0 0 0 19 11zM14.98 11.17c-.04.3-.12.58-.23.85l1.65 1.65c.34-.73.55-1.54.58-2.39l-1.98-.11zM11 5c0-.55.45-1 1-1s1 .45 1 1v5.17l1.82 1.82c.11-.31.18-.64.18-.99V5c0-1.66-1.34-3-3-3S9 3.34 9 5v1.17l2 2V5zM2.1 2.1L.69 3.51 5.17 8H4v3c0 3.53 2.61 6.43 6 6.92V21h4v-1.08l4.49 4.49 1.41-1.41L2.1 2.1zm8.9 14.82V14c-1.66 0-3-1.34-3-3V9.83l4 4A2.99 2.99 0 0 1 11 16.92z" />
+                            </svg>
+                        )}
                     </button>
 
                     {/* Video */}
-                    <button className={`media-btn ${!isVideoOn ? 'off' : ''}`} onClick={() => setIsVideoOn(!isVideoOn)}>
-                        {isVideoOn ? '📹' : '🚫'}
+                    <button className={`media-btn ${!isVideoOn ? 'off' : ''}`} onClick={() => setIsVideoOn(!isVideoOn)} title="Toggle Video">
+                        {isVideoOn ? (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                            </svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z" />
+                            </svg>
+                        )}
                     </button>
 
                     {/* Play/Pause */}
-                    <button className={`media-btn play-pause-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlay} disabled={!currentSong}>
+                    <button className={`media-btn play-pause-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlay} disabled={!currentSong} title="Play/Pause">
                         <img src={micImg} alt="Play/Pause" className="play-pause-mic" />
                     </button>
 
                     {/* Layout Switch */}
                     <button className="media-btn" onClick={() => setLayoutMode(layoutMode === 'split' ? 'pip' : 'split')} title="Switch Layout">
-                        {layoutMode === 'split' ? '🔲' : '🔳'}
+                        {layoutMode === 'split' ? (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M3 3v18h18V3H3zm8 16H5V5h6v14zm8 0h-6V5h6v14z" />
+                            </svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                                <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h9v6h-9z" />
+                            </svg>
+                        )}
                     </button>
 
                     {/* Visual Effect */}
@@ -517,6 +635,25 @@ function Room() {
                         {currentTheme.id === 'dorm' ? '🎉' : currentTheme.id === 'beach' ? '🫧' : '💖'}
                     </button>
                 </div>
+            </div>
+
+            {/* Photo Booth Button */}
+            <div className="photo-booth-container">
+                <svg className="photo-booth-text" viewBox="0 0 100 100">
+                    <path id="photoPath" d="M 50, 50 m -35, 0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0" fill="transparent" />
+                    <text fill="var(--theme-secondary)" fontSize="11" fontWeight="bold" letterSpacing="1.8">
+                        <textPath href="#photoPath" startOffset="0%">
+                            SAY CHEESE •  ☆*: .｡. o(≧▽≦)o .｡.:*☆
+                        </textPath>
+                    </text>
+                </svg>
+                <img
+                    src={cameraImg}
+                    alt="Camera"
+                    className="photo-booth-btn"
+                    onClick={() => alert('Snap! Photo saved!')}
+                    title="Photo Booth"
+                />
             </div>
 
             {/* Progress Bar */}

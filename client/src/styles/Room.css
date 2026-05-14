@@ -415,7 +415,7 @@
 }
 
 .you-half {
-  border-right: 1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  border-left: 1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent);
   transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 1;
 }
@@ -511,6 +511,7 @@
   white-space: nowrap;
   text-align: right;
   transform-origin: right center;
+  font-size: 10px;
 }
 
 /* Progress Bar */
@@ -563,7 +564,7 @@
 
 .media-btn:disabled {
   opacity: 0.3;
-  cursor: not-allowed;
+  cursor: default;
   filter: grayscale(1);
   box-shadow: none;
 }
@@ -677,35 +678,88 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   font-family: 'Chillax', sans-serif;
   color: rgba(255, 255, 255, 0.4);
   font-weight: 500;
   letter-spacing: 2px;
 }
 
-.webcam-mic {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40%;
-  max-width: 180px;
-  height: auto;
-  object-fit: contain;
-  opacity: 0.12;
-  filter: brightness(0) invert(1);
-  pointer-events: none;
-}
-
 .webcam-name {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 2;
   font-size: 14px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
+
+/* Floating Mics */
+.floating-mic {
+  position: absolute;
+  width: 70px;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 10;
+  filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  transition: all 0.3s ease;
+}
+
+.left-mic {
+  bottom: 25%;
+  right: 30%;
+  transform: rotate(25deg);
+}
+
+.right-mic {
+  bottom: 25%;
+  left: 30%;
+  transform: rotate(-25deg);
+}
+
+/* Photo Booth */
+.photo-booth-container {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 100px;
+  height: 100px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-booth-btn {
+  width: 65px;
+  height: auto;
+  cursor: pointer;
+  filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+  object-fit: contain;
+}
+
+.photo-booth-btn:hover {
+  transform: scale(1.15) rotate(-5deg);
+  filter: drop-shadow(0 0 15px color-mix(in srgb, var(--theme-secondary) 80%, transparent));
+}
+
+.photo-booth-text {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  top: -5px;
+  left: -5px;
+  z-index: -1;
+  animation: spin 10s linear infinite;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+
 
 /* Theme Doodles */
 .theme-doodles-container {
