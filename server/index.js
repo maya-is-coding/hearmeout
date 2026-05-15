@@ -6,6 +6,9 @@ const cors = require('cors');
 // 1. Create express app
 const app = express();
 app.use(cors());
+app.get('/', (req, res) => {
+    res.send('HearMeOut Backend is running! 🎶');
+});
 
 // 2. Wrap it in an http server
 const server = http.createServer(app);
