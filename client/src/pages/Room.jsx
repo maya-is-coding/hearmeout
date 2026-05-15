@@ -156,10 +156,20 @@ function Room() {
             if (newTheme) setCurrentTheme(newTheme);
         });
 
+        socket.on('connect', () => {
+            console.log('CONNECTED TO SOCKET SERVER:', socket.id);
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('SOCKET CONNECTION ERROR:', err.message);
+        });
+
         return () => {
             socket.off('partner-joined');
             socket.off('partner-left');
             socket.off('theme-changed');
+            socket.off('connect');
+            socket.off('connect_error');
         };
     }, [roomCode, userName]);
 
