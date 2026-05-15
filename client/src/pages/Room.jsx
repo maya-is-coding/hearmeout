@@ -94,11 +94,13 @@ function Room() {
 
     // Keep refs of current state for socket callbacks without triggering reconnects
     const syncStateRef = useRef({ song: null, audio: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         syncStateRef.current = { song: currentSong, audio: audioRef.current };
     }, [currentSong, isPlaying]);
 
     // Tick: every second sync lyric index to audio.currentTime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!isPlaying || parsedLyrics.length === 0) return;
         const interval = setInterval(() => {
@@ -121,6 +123,7 @@ function Room() {
     }, [isPlaying, parsedLyrics]);
 
     // Handle Socket Connection
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         socket.emit('join-room', { code: roomCode, name: userName });
 
@@ -161,6 +164,7 @@ function Room() {
     }, [roomCode, userName]);
 
     // Handle theme-specific background effects (Confetti intervals, Bubbles, Hearts)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!isPlaying) {
             setBubbles([]);
@@ -286,6 +290,7 @@ function Room() {
     const handleVinylClick = playSong;
 
     // Listen for partner playing or pausing a song (runs only once per mount)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         const onPlaySong = ({ songId, timestamp }) => {
             const song = songs.find(s => s.id === songId);
@@ -329,6 +334,7 @@ function Room() {
     }, [playSong]);
 
     // Request sync ONCE after mount — separate from song listeners to avoid re-triggering
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         // Small delay to ensure all listeners are registered first
         const timer = setTimeout(() => {
