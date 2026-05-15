@@ -222,6 +222,7 @@ function Room() {
     }, [isPlaying, currentTheme.id]);
 
     // Stable play-song function that reads state from refs (never changes identity)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const playSong = useCallback(async (song, fromSocket = false, timestamp = 0, autoPlay = true) => {
         // If clicking the same song that is already playing, toggle pause
         if (!fromSocket && currentSongRef.current?.id === song.id && audioRef.current) {
