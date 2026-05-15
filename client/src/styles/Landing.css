@@ -105,3 +105,17 @@
   transform: scale(1.1) rotate(-8deg);
   filter: drop-shadow(0 4px 15px rgba(249, 168, 201, 0.5));
 }
+
+.landing-error {
+  color: #f9a8c9;
+  font-size: 15px;
+  font-style: italic;
+  text-align: center;
+  margin: 0 auto 20px auto;
+  animation: errorPop 0.35s ease;
+}
+
+@keyframes errorPop {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

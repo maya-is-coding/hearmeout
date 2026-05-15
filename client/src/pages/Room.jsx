@@ -86,6 +86,12 @@ function Room() {
     const [lyricIndex, setLyricIndex] = useState(0);
     const [progress, setProgress] = useState(0);
 
+    // Refs to hold latest state for stable socket callbacks (avoids re-render loops)
+    const currentSongRef = useRef(null);
+    const isPlayingRef = useRef(false);
+    useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+    useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
     // Keep refs of current state for socket callbacks without triggering reconnects
     const syncStateRef = useRef({ song: null, audio: null });
     useEffect(() => {
@@ -141,9 +147,16 @@ function Room() {
             console.log('partner left');
         });
 
+        // Listen for theme changes from partner
+        socket.on('theme-changed', (themeId) => {
+            const newTheme = themes.find(t => t.id === themeId);
+            if (newTheme) setCurrentTheme(newTheme);
+        });
+
         return () => {
             socket.off('partner-joined');
             socket.off('partner-left');
+            socket.off('theme-changed');
         };
     }, [roomCode, userName]);
 
@@ -208,11 +221,11 @@ function Room() {
         };
     }, [isPlaying, currentTheme.id]);
 
-    // One-tap play/pause for vinyls
-    const handleVinylClick = useCallback(async (song, fromSocket = false, timestamp = 0, autoPlay = true) => {
+    // Stable play-song function that reads state from refs (never changes identity)
+    const playSong = useCallback(async (song, fromSocket = false, timestamp = 0, autoPlay = true) => {
         // If clicking the same song that is already playing, toggle pause
-        if (!fromSocket && currentSong?.id === song.id && audioRef.current) {
-            if (isPlaying) {
+        if (!fromSocket && currentSongRef.current?.id === song.id && audioRef.current) {
+            if (isPlayingRef.current) {
                 audioRef.current.pause();
                 setIsPlaying(false);
                 socket.emit('pause-song', { code: roomCode, timestamp: audioRef.current.currentTime });
@@ -266,13 +279,16 @@ function Room() {
             setIsPlaying(false);
             triggerThemeConfetti();
         };
-    }, [currentSong, isPlaying, roomCode]);
+    }, [roomCode]); // Only depends on roomCode — stable across state changes
 
-    // Listen for partner playing or pausing a song
+    // Wrapper that user-facing code calls (so vinyl onClick still works)
+    const handleVinylClick = playSong;
+
+    // Listen for partner playing or pausing a song (runs only once per mount)
     useEffect(() => {
         const onPlaySong = ({ songId, timestamp }) => {
             const song = songs.find(s => s.id === songId);
-            if (song) handleVinylClick(song, true, timestamp, true);
+            if (song) playSong(song, true, timestamp, true);
         };
         
         const onPauseSong = ({ timestamp }) => {
@@ -294,8 +310,8 @@ function Room() {
         const onSyncSong = ({ songId, timestamp, isPlaying: partnerPlaying }) => {
             const song = songs.find(s => s.id === songId);
             if (!song) return;
-            // Join mid-song: we handle loading and seeking
-            handleVinylClick(song, true, timestamp, partnerPlaying);
+            console.log('sync-song received:', songId, 'ts:', timestamp, 'playing:', partnerPlaying);
+            playSong(song, true, timestamp, partnerPlaying);
         };
 
         socket.on('play-song', onPlaySong);
@@ -309,7 +325,17 @@ function Room() {
             socket.off('resume-song', onResumeSong);
             socket.off('sync-song', onSyncSong);
         };
-    }, [handleVinylClick]);
+    }, [playSong]);
+
+    // Request sync ONCE after mount — separate from song listeners to avoid re-triggering
+    useEffect(() => {
+        // Small delay to ensure all listeners are registered first
+        const timer = setTimeout(() => {
+            socket.emit('request-sync', roomCode);
+            console.log('request-sync emitted for room', roomCode);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [roomCode]);
 
     // Play/pause toggle (central mic button)
     const togglePlay = () => {
@@ -486,7 +512,7 @@ function Room() {
                             <CircularTextButton
                                 key={t.id}
                                 theme={t}
-                                onClick={() => { setCurrentTheme(t); setIsThemesOpen(false); }}
+                                onClick={() => { setCurrentTheme(t); setIsThemesOpen(false); socket.emit('change-theme', { code: roomCode, themeId: t.id }); }}
                             />
                         ))}
                     </div>

@@ -70,8 +70,9 @@ function Landing() {
         placeholder="your name... 🌸"
         value={name}
         onChange={e => setName(e.target.value)}
-        style={{ maxWidth: '300px', margin: '0 auto 30px auto', display: 'block', textAlign: 'center' }}
+        style={{ maxWidth: '300px', margin: '0 auto 10px auto', display: 'block', textAlign: 'center' }}
       />
+      {error && <p className="landing-error">{error}</p>}
 
       <div className="landing-cards">
         <div className="room-card">
@@ -98,7 +99,6 @@ function Landing() {
             onChange={e => setCode(e.target.value.toUpperCase())}
             maxLength={6}
           />
-          {error && <p style={{ color: '#f9a8c9', fontSize: '14px' }}>{error}</p>}
           <button
             className="enter-btn"
             onClick={joinRoom}
